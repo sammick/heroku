@@ -4,7 +4,12 @@
   "description": "",
   "main": "main.js",
   "scripts": {
+    "start": "node main.js",
     "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sammick/heroku"
   },
   "author": "Abu Sufiyan",
   "license": "ISC",
@@ -15,5 +20,8 @@
     "lodash": "^4.17.21",
     "request": "^2.88.2",
     "sharp": "^0.28.1"
+  },
+  "engines": {
+    "node": "v14.15.5"
   }
 }
