@@ -14,10 +14,12 @@
   "author": "Abu Sufiyan",
   "license": "ISC",
   "dependencies": {
+    "delay": "^5.0.0",
     "express": "^4.17.1",
     "express-fileupload": "^1.2.1",
     "form-data": "^4.0.0",
     "lodash": "^4.17.21",
+    "lodash-id": "^0.14.0",
     "lowdb": "^1.0.0",
     "request": "^2.88.2",
     "sharp": "^0.28.1"

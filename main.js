@@ -7,12 +7,16 @@ var { isNull, last } = require('lodash')
 var request = require('request');
 const low = require('lowdb')
 const FileSync = require('lowdb/adapters/FileSync')
+const lodashId = require('lodash-id')
+const delay = require('delay')
+
 
 const app = express();
 const PORT = process.env.PORT || 5000
 
 var adapter = new FileSync('db.json')
 var db = low(adapter)
+db._.mixin(lodashId)
 db.defaults({
     requests:[]
 }).write()
@@ -39,14 +43,16 @@ app.get('/', function(req, res){
 })
 app.get('/uploads', function(req, res){
     var filenames = fs.readdirSync('./uploads/');
-    filenames     = filenames.filter(el => el.endsWith('.jpg'))
     var output = '<ol>';
-        filenames.map(el => [output, el].join())
+    filenames.map(el => {
+        output += `<li><a href="./${el}" target="_blank">${el}</a></li>`;
+    })
     output    += '</ol>';
     res.send(output)
 })
 app.post('/createstory', async function (req, res, next) {
 
+    console.log();
     var post = req.body;
     // console.log('post', post);
     var output = {
@@ -54,56 +60,72 @@ app.post('/createstory', async function (req, res, next) {
         feed: filepath('feed', post)
     };
     var fileurl = last(post?.display_resources)?.src
+    console.log('fileurl', fileurl.length);
 
     try {
-        var file =  './uploads/' + ( post.shortcode || post.id || post.__typename ) + '.jpg';
 
-        console.log(post?.action == undefined, post?.action != 'delete');
-        if(post?.action == undefined || post?.action != 'delete') {
-            await download(fileurl, file, async function(){
-    
-                // creating for story
-                sharp(file).resize(1080).toBuffer().then( async butter => {
-                    var finaloutput = await sharp({
-                        create: {
-                            width: 1080,
-                            height: 1920,
-                            channels: 4,
-                            background: { r: 255, g: 255, b: 255, alpha: 1 }
-                        }
-                    })
-                    .flatten( { background: '#ffffff' } )
-                    .composite([{ input: butter }])
-                    .sharpen().withMetadata().toFile( 'uploads/' + output.story);
-                });
-    
-                 // creating for feed
-                await download(fileurl, file, async function(){
-                    sharp(file).resize(null, 1080).toBuffer().then( async butter => {
-                        var feedfinaloutput = await sharp({
-                            create: {
-                                width: 1080,
-                                height: 1080,
-                                channels: 4,
-                                background: { r: 255, g: 255, b: 255, alpha: 1 }
-                            }
-                        })
-                        .flatten( { background: '#ffffff' } )
-                        .composite([{ input: butter }])
-                        .sharpen().withMetadata().toFile( 'uploads/' + output.feed);
-                    });
+        var file =  './uploads/' + ( post.shortcode || post.id || post.__typename ) + '.jpg';
+        
+        await download(fileurl, file, async function(){
+
+            await delay( 3 * 1000);
+            // creating for story
+            sharp(file).resize(1080).toBuffer().then( async butter => {
+                var finaloutput = await sharp({
+                    create: {
+                        width: 1080,
+                        height: 1920,
+                        channels: 4,
+                        background: { r: 255, g: 255, b: 255, alpha: 1 }
+                    }
                 })
-            })
-            var adapter = new FileSync('db.json')
-            var db = low(adapter)
-            db.get('requests').push(post).write();
-        } else {
-            await fs.existsSync(file) && await fs.unlinkSync(file);
-            await fs.existsSync('./uploads/' + output.story) && await fs.unlinkSync('./uploads/' + output.story);
-            await fs.existsSync('./uploads/' + output.feed)  && await fs.unlinkSync('./uploads/' + output.feed);
-            res.json({status: 'ok'});
-            return;
-        }
+                .flatten( { background: '#ffffff' } )
+                .composite([{ input: butter }])
+                .sharpen().withMetadata().toFile( 'uploads/' + output.story);
+            });
+            await delay( 1 * 1000);
+            // creating for feed
+            sharp(file).resize(null, 1080).toBuffer().then( async feedbutter => {
+                var feedfinaloutput = await sharp({
+                    create: {
+                        width: 1080,
+                        height: 1080,
+                        channels: 4,
+                        background: { r: 255, g: 255, b: 255, alpha: 1 }
+                    }
+                })
+                .flatten( { background: '#ffffff' } )
+                .composite([{ input: feedbutter }])
+                .sharpen().withMetadata().toFile( 'uploads/' + output.feed);
+            });
+            await delay( .5 * 1000);
+        })
+
+        post.output = output;
+        post.file   = file;
+        var adapter = new FileSync('db.json')
+        var db = low(adapter)
+        db._.mixin(lodashId)
+        db.get('requests').push(post).write();
+        
+        res.json(output);
+
+        // console.log('responed, delete extra photos');
+        // var del_requests= db.get('requests').reverse().value()
+        // if(del_requests.length > 2) {
+        //     for (let e = 2; e < del_requests.length; e++) {
+        //         const el = del_requests[e];
+        //         // console.log(el.owner.username, el.output );
+        //         await fs.existsSync(post.file) && await fs.unlinkSync(post.file);
+        //         await fs.existsSync('./uploads/' + el.output.story) && await fs.unlinkSync('./uploads/' + el.output.story);
+        //         await fs.existsSync('./uploads/' + el.output.feed)  && await fs.unlinkSync('./uploads/' + el.output.feed);
+        //         db.get('requests').remove({ id: post.id });
+        //         db.get('requests').remove({ unique: post.unique });
+        //     }
+        // }
+        // db.write();
+
+        return;
         
     } catch (error) {
         console.log('shorp', error);
