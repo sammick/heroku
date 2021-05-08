@@ -5,10 +5,17 @@ const fs = require('fs');
 const sharp = require('sharp')
 var { isNull, last } = require('lodash')
 var request = require('request');
-const { resolve } = require('path');
+const low = require('lowdb')
+const FileSync = require('lowdb/adapters/FileSync')
 
 const app = express();
 const PORT = process.env.PORT || 5000
+
+var adapter = new FileSync('db.json')
+var db = low(adapter)
+db.defaults({
+    requests:[]
+}).write()
 
 app.use('/uploads', express.static('uploads'))
 
@@ -30,7 +37,14 @@ app.use(bodyParser.urlencoded({ extended: true })) // for parsing application/x-
 app.get('/', function(req, res){
     res.send('Hello Herokuapp');
 })
-
+app.get('/uploads', function(req, res){
+    var filenames = fs.readdirSync('./uploads/');
+    filenames     = filenames.filter(el => el.endsWith('.jpg'))
+    var output = '<ol>';
+        filenames.map(el => [output, el].join())
+    output    += '</ol>';
+    res.send(output)
+})
 app.post('/createstory', async function (req, res, next) {
 
     var post = req.body;
@@ -80,6 +94,9 @@ app.post('/createstory', async function (req, res, next) {
                     });
                 })
             })
+            var adapter = new FileSync('db.json')
+            var db = low(adapter)
+            db.get('requests').push(post).write();
         } else {
             await fs.existsSync(file) && await fs.unlinkSync(file);
             await fs.existsSync('./uploads/' + output.story) && await fs.unlinkSync('./uploads/' + output.story);
